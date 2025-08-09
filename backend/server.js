@@ -1,54 +1,60 @@
 const express = require("express");
 const cors = require("cors");
-const { Pool } = require("pg");
+const mysql = require("mysql2/promise");
 require("dotenv").config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// PostgreSQL connection pool
-const pool = new Pool({
-  host: process.env.PG_HOST,
-  port: process.env.PG_PORT,
-  user: process.env.PG_USER,
-  password: process.env.PG_PASSWORD,
-  database: process.env.PG_DATABASE,
+ 
+// Create MySQL connection pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
 });
 
 // Create submissions table if not exists
 (async () => {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS contact_submissions (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL,
+    CREATE TABLE contact_submissions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
       message TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+      submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 })();
 
-// API endpoint
+// POST route: insert contact
 app.post("/api/contact", async (req, res) => {
   const { name, email, message } = req.body;
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: "All fields are required" });
-  }
-
   try {
-    await pool.query(
-      "INSERT INTO contact_submissions (name, email, message) VALUES ($1, $2, $3)",
+    const [result] = await pool.execute(
+      "INSERT INTO contact_submissions (name, email, message) VALUES (?, ?, ?)",
       [name, email, message]
     );
-    res.json({ success: true, message: "Submission saved" });
+    res.status(201).json({ success: true, insertId: result.insertId });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Database error" });
+    console.error("DB error:", err);
+    res.status(500).json({ success: false, error: "Database error" });
   }
 });
 
-// Start server
+// GET route: fetch contacts
+app.get("/api/contacts", async (req, res) => {
+  try {
+    const [rows] = await pool.execute("SELECT * FROM contact_submissions ORDER BY submitted_at DESC");
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error("DB error:", err);
+    res.status(500).json({ success: false, error: "Database error" });
+  }
+});
+
 app.listen(process.env.PORT, () => {
-  console.log(`Server running on port ${process.env.PORT}`);
+  console.log(`Backend running on port ${process.env.PORT}`);
 });
