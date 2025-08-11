@@ -4,9 +4,8 @@
 This application is divided into 2 projects, frontend (react + vite) and backend (express + mysql)
 
 ### Project Support Features
-* 
-* Public (non-authenticated) users can access all causes on the platform
-* Authenticated users can access all causes as well as create a new cause, edit their created cause and also delete what they've created.
+* Users can submit contact information
+* Users can see previously submitted contact information
 
 ### Installation Guide
 * Clone this repository [here](https://github.com/cmadison0005/contact_form.git).
